@@ -1,0 +1,60 @@
+config ELOG_ASSERT
+	bool "Assertion"
+	default n
+	help
+	  Build elog library with internal assertions.
+
+config ELOG_DEBUG
+	bool "Enable internal debugging"
+	default n
+	help
+	  Build elog library with internal debugging support.
+
+config ELOG_HAVE_IMPL
+	bool
+	default n
+
+config ELOG_STDIO
+	bool "Standard I/Os"
+	select ELOG_HAVE_IMPL
+	default y
+	help
+	  Build elog library with standard I/Os support.
+
+config ELOG_FILE
+	bool "File"
+	select ELOG_STDIO
+	default y
+	help
+	  Build elog library with file support.
+
+config ELOG_SYSLOG
+	bool "Syslog"
+	select ELOG_HAVE_IMPL
+	default y
+	help
+	  Build elog library with syslog support.
+
+config ELOG_MULTI
+	bool "Multi logger"
+	depends on ELOG_HAVE_IMPL
+	default ELOG_HAVE_IMPL
+	help
+	  Build elog library with multiple logger support.
+
+config ELOG_LOGGER
+	bool "elogger utility"
+	depends on ELOG_HAVE_IMPL
+	select ELOG_MULTI
+	default ELOG_HAVE_IMPL
+	help
+	  Build elog library with multiple logger support.
+
+config ELOG_SAMPLE
+	bool "elogger sample apps"
+	depends on ELOG_HAVE_IMPL
+	default n
+	help
+	  Build elog library with sample code applications.
+
+# ex: filetype=kconfig
