@@ -29,10 +29,9 @@ show_usage(void)
 	fprintf(stderr, USAGE, program_invocation_short_name);
 }
 
-static const struct elog_conf dflt = {
-	.format   = ELOG_TAG_FMT,
-	.severity = ELOG_INFO_SEVERITY,
-	.facility = -1
+static const struct elog_stdio_conf dflt = {
+	.super.severity = ELOG_INFO_SEVERITY,
+	.format         = ELOG_TAG_FMT
 };
 
 int
@@ -70,7 +69,7 @@ main(int argc, char * const argv[])
 
 	elog_init_stdio(&log, &dflt);
 
-	elog_info(&log, "Hellow World !");
+	elog_info(&log, "Hello World !");
 
 	elog_fini_stdio(&log);
 

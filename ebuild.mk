@@ -1,13 +1,19 @@
 config-in                  := Config.in
 config-h                   := elog/config.h
 
+ifeq ($(findstring config,$(MAKECMDGOALS)),)
+ifneq ($(CONFIG_ELOG_HAVE_IMPL),y)
+$(error Invalid build configuration: no implementation module selected !)
+endif
+endif
+
 common-cflags              := -Wall -Wextra -Wformat=2 $(EXTRA_CFLAGS)
 
 solibs                     := libelog.so
 libelog.so-objs             = elog.o
 libelog.so-cflags           = $(common-cflags) -DPIC -fpic
 libelog.so-ldflags          = $(EXTRA_LDFLAGS) \
-                              -shared -fpic -Wl,-soname,libelog.so
+                              -shared -Bsymbolic -fpic -Wl,-soname,libelog.so
 libelog.so-pkgconf          = libutils
 
 bins                        = $(call kconf_enabled,ELOG_LOGGER,elogger)
@@ -15,6 +21,20 @@ elogger-objs                = elogger.o
 elogger-cflags              = $(common-cflags)
 elogger-ldflags            := $(EXTRA_LDFLAGS) -lelog
 elogger-pkgconf            := libutils
+
+bins                       += $(call kconf_enabled,ELOG_MQUEUE_UTIL,elog_mqueue)
+elog_mqueue-objs            = elog_mqueue.o
+elog_mqueue-cflags          = $(common-cflags)
+elog_mqueue-ldflags        := $(EXTRA_LDFLAGS) -lelog
+elog_mqueue-pkgconf         = libutils
+elog_mqueue-path           := $(SBINDIR)/elog_mqueue
+
+bins                       += $(call kconf_enabled,ELOG_DAEMON,elogd)
+elogd-objs                  = elogd.o
+elogd-cflags                = $(common-cflags)
+elogd-ldflags              := $(EXTRA_LDFLAGS) -lelog
+elogd-pkgconf               = libutils
+elogd-path                 := $(SBINDIR)/elogd
 
 ifeq ($(CONFIG_ELOG_SAMPLE),y)
 
@@ -28,10 +48,12 @@ elog_sample_std-objs        = sample_std.o
 elog_sample_std-cflags      = $(common-cflags)
 elog_sample_std-ldflags    := $(EXTRA_LDFLAGS) -lelog
 
-bins                       += $(call kconf_enabled,ELOG_FILE,elog_sample_file)
-elog_sample_file-objs       = sample_file.o
-elog_sample_file-cflags     = $(common-cflags)
-elog_sample_file-ldflags   := $(EXTRA_LDFLAGS) -lelog
+bins                       += $(call kconf_enabled,ELOG_MQUEUE, \
+                                     elog_sample_mqueue)
+elog_sample_mqueue-objs     = sample_mqueue.o
+elog_sample_mqueue-cflags   = $(common-cflags)
+elog_sample_mqueue-ldflags := $(EXTRA_LDFLAGS) -lelog
+elog_sample_mqueue-pkgconf := libutils
 
 bins                       += $(call kconf_enabled,ELOG_SYSLOG, \
                                      elog_sample_syslog)

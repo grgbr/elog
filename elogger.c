@@ -295,7 +295,7 @@ elogger_open_chrdev(const char * __restrict path)
 	struct stat st;
 	int         err;
 
-	fd = ufile_open(path, O_WRONLY | O_CLOEXEC | O_NOATIME | O_NOFOLLOW);
+	fd = ufile_open(path, O_WRONLY | O_CLOEXEC | O_NOFOLLOW);
 	if (fd < 0)
 		return fd;
 
@@ -340,7 +340,7 @@ elogger_build_null_redir(struct elogger_redir ** __restrict redir)
 	elog_assert(redir);
 
 	if (*redir) {
-		elogger_err("cannot mix 'null' with multiple loggers.\n");
+		elogger_err("cannot mix 'null' with multiple loggers.");
 		return -EINVAL;
 	}
 
@@ -348,7 +348,9 @@ elogger_build_null_redir(struct elogger_redir ** __restrict redir)
 	if (!*redir) {
 		int err = errno;
 
-		elogger_err("cannot create 'null' redirector.\n");
+		elogger_err("cannot create 'null' redirector: %s (%d).",
+		            strerror(err),
+		            err);
 		return -err;
 	}
 
@@ -392,11 +394,7 @@ elogger_log_pipe_redir_line(struct elogger_pipe_redir * __restrict redir,
 	elog_assert(len);
 	elog_assert(line[len - 1] == '\n');
 
-	elog_log((struct elog *)&redir->log,
-	         ELOG_DFLT_SEVERITY,
-	         "%.*s",
-	         (int)(len - 1),
-	         line);
+	elog_current(&redir->log, "%.*s", (int)(len - 1), line);
 }
 
 /**
@@ -859,51 +857,6 @@ struct elogger_context {
 	ustr_parse_token_fn * const * const parsers;
 };
 
-static int __elog_nonull(1, 3)
-elogger_parse_format_spec(char * __restrict arg,
-                          size_t            len __unused,
-                          void * __restrict data)
-{
-	elog_assert(arg);
-	elog_assert(arg[0]);
-	elog_assert(len);
-	elog_assert(data);
-
-	struct elogger_context * ctx = data;
-
-	return elog_parse_format(&ctx->parse, ctx->conf, arg);
-}
-
-static int __elog_nonull(1, 3)
-elogger_parse_severity_spec(char * __restrict  arg,
-                            size_t             len __unused,
-                            void *  __restrict data)
-{
-	elog_assert(arg);
-	elog_assert(arg[0]);
-	elog_assert(len);
-	elog_assert(data);
-
-	struct elogger_context * ctx = data;
-
-	return elog_parse_severity(&ctx->parse, ctx->conf, arg);
-}
-
-static int __elog_nonull(1, 3)
-elogger_parse_facility_spec(char * __restrict  arg,
-                             size_t             len __unused,
-                             void *  __restrict data)
-{
-	elog_assert(arg);
-	elog_assert(arg[0]);
-	elog_assert(len);
-	elog_assert(data);
-
-	struct elogger_context * ctx = data;
-
-	return elog_parse_facility(&ctx->parse, ctx->conf, arg);
-}
-
 static int __elog_nonull(1, 2, 3)
 elogger_finalize_parsing(struct elogger_context * __restrict ctx,
                          char * __restrict                   spec,
@@ -950,28 +903,60 @@ fini:
 
 #if defined(CONFIG_ELOG_STDIO)
 
+static int __elog_nonull(1, 3)
+elogger_parse_stdio_severity_spec(char * __restrict  arg,
+                                  size_t             len __unused,
+                                  void *  __restrict data)
+{
+	elog_assert(arg);
+	elog_assert(arg[0]);
+	elog_assert(len);
+	elog_assert(data);
+
+	struct elogger_context * ctx = data;
+
+	return elog_parse_stdio_severity(&ctx->parse,
+	                                 (struct elog_stdio_conf *)ctx->conf,
+	                                 arg);
+}
+
+static int __elog_nonull(1, 3)
+elogger_parse_stdio_format_spec(char * __restrict arg,
+                                size_t            len __unused,
+                                void * __restrict data)
+{
+	elog_assert(arg);
+	elog_assert(arg[0]);
+	elog_assert(len);
+	elog_assert(data);
+
+	struct elogger_context * ctx = data;
+
+	return elog_parse_stdio_format(&ctx->parse,
+	                               (struct elog_stdio_conf *)ctx->conf,
+	                               arg);
+}
+
 static struct elog * __elog_nonull(1)
 elogger_build_stdlog(char * __restrict spec)
 {
 	elog_assert(spec);
 
-	int                           ret;
-	struct elog *                 sublog;
-	static const struct elog_conf dflt = {
-		.format   = ELOG_TAG_FMT | ELOG_PID_FMT,
-		.severity = ELOG_WARNING_SEVERITY,
-		.facility = LOG_USER
+	int                                 ret;
+	struct elog *                       sublog;
+	static const struct elog_stdio_conf dflt = {
+		.super.severity = ELOG_WARNING_SEVERITY,
+		.format         = ELOG_TAG_FMT | ELOG_PID_FMT
 	};
 
 	if (spec[0]) {
-		struct elog_conf                   conf;
+		struct elog_stdio_conf             conf;
 		static ustr_parse_token_fn * const parsers[] = {
-			elogger_parse_severity_spec,
-			elogger_parse_format_spec,
-			elogger_parse_facility_spec
+			elogger_parse_stdio_severity_spec,
+			elogger_parse_stdio_format_spec
 		};
 		struct elogger_context             ctx = {
-			.conf    = &conf,
+			.conf    = (struct elog_conf *)&conf,
 			.count   = array_nr(parsers),
 			.parsers = parsers
 		};
@@ -993,7 +978,7 @@ elogger_build_stdlog(char * __restrict spec)
 		return sublog;
 
 	ret = errno;
-	elogger_err("cannot create stdlog logger: %s (%d).\n",
+	elogger_err("cannot create stdlog logger: %s (%d).",
 	            strerror(ret),
 	            ret);
 	errno = ret;
@@ -1004,17 +989,17 @@ elogger_build_stdlog(char * __restrict spec)
 #define STDLOG_TOPSPEC "|<STDLOG_SPEC>"
 
 #define STDLOG_SPEC \
-"    STDLOG_SPEC     := stdlog[:<SEVERITY>[:<STD_FORMAT>[:<FACILITY>]]]\n"
+"    STDLOG_SPEC   := stdlog[:<SEVERITY>[:<STD_FORMAT>]]\n"
 
 #define STDLOG_FORMAT \
 "\n" \
-"    STD_FORMAT      := none|dflt|<STD_FLAGS>\n" \
-"    STD_FLAGS       := <STD_FLAG>[,<STD_FLAGS>]\n" \
-"    STD_FLAG        := realtime|monotime|tag|pid|severity|rfc3164\n"
+"    STD_FORMAT    := none|dflt|<STD_FLAGS>\n" \
+"    STD_FLAGS     := <STD_FLAG>[,<STD_FLAGS>]\n" \
+"    STD_FLAG      := bootime|proctime|tag|pid|severity\n"
 
 #define STDLOG_WHERE \
 "    STDLOG_SPEC -- format / redirect command standard I/O stream(s) to stderr\n" \
-"                   (defaults to `stdlog:warn:pid:user')\n" \
+"                   (defaults to `stdlog:warn:pid')\n" \
 
 #else  /* !defined(CONFIG_ELOG_STDIO) */
 
@@ -1025,170 +1010,81 @@ elogger_build_stdlog(char * __restrict spec)
 
 #endif /* defined(CONFIG_ELOG_STDIO) */
 
-#if defined(CONFIG_ELOG_FILE)
-
-static int __elog_nonull(1, 3)
-elogger_parse_file_path_spec(char * __restrict  arg,
-                             size_t             len __unused,
-                             void *  __restrict data)
-{
-	elog_assert(arg);
-	elog_assert(arg[0]);
-	elog_assert(len);
-	elog_assert(data);
-
-	struct elogger_context * ctx = data;
-
-	return elog_parse_file_path(&ctx->parse,
-	                            (struct elog_file_conf *)ctx->conf,
-	                            arg);
-}
-
-static int __elog_nonull(1, 3)
-elogger_parse_file_flags_spec(char * __restrict  arg,
-                              size_t             len __unused,
-                              void *  __restrict data)
-{
-	elog_assert(arg);
-	elog_assert(arg[0]);
-	elog_assert(len);
-	elog_assert(data);
-
-	struct elogger_context * ctx = data;
-
-	return elog_parse_file_flags(&ctx->parse,
-	                             (struct elog_file_conf *)ctx->conf,
-	                             arg);
-}
-
-static int __elog_nonull(1, 3)
-elogger_parse_file_mode_spec(char * __restrict  arg,
-                             size_t             len __unused,
-                             void *  __restrict data)
-{
-	elog_assert(arg);
-	elog_assert(arg[0]);
-	elog_assert(len);
-	elog_assert(data);
-
-	struct elogger_context * ctx = data;
-
-	return elog_parse_file_mode(&ctx->parse,
-	                            (struct elog_file_conf *)ctx->conf,
-	                            arg);
-}
-
-static struct elog * __elog_nonull(1)
-elogger_build_fslog(char * __restrict spec)
-{
-	elog_assert(spec);
-
-	int                                ret;
-	struct elog *                      sublog;
-	static const struct elog_file_conf dflt = {
-		.stdio = {
-			.format   = ELOG_RFC3164_FMT |
-			            ELOG_TAG_FMT | ELOG_PID_FMT,
-			.severity = ELOG_WARNING_SEVERITY,
-			.facility = LOG_USER
-		},
-		.path  = NULL,
-		.flags = 0,
-		.mode  = S_IRUSR | S_IWUSR | S_IRGRP
-	};
-
-	if (spec[0]) {
-		struct elog_file_conf              conf;
-		static ustr_parse_token_fn * const parsers[] = {
-			elogger_parse_file_path_spec,
-			elogger_parse_file_flags_spec,
-			elogger_parse_file_mode_spec,
-			elogger_parse_severity_spec,
-			elogger_parse_format_spec,
-			elogger_parse_facility_spec
-		};
-		struct elogger_context             ctx = {
-			.conf    = (struct elog_conf *)&conf,
-			.count   = array_nr(parsers),
-			.parsers = parsers
-		};
-
-		elog_init_file_parse(&ctx.parse, &conf, &dflt);
-
-		ret = elogger_finalize_parsing(&ctx, spec, "fslog");
-		if (ret) {
-			errno = -ret;
-			return NULL;
-		}
-
-		sublog = elog_create_file(&conf);
-	}
-	else
-		sublog = elog_create_file(&dflt);
-
-	if (sublog)
-		return sublog;
-
-	ret = errno;
-	elogger_err("cannot create fslog logger: %s (%d).\n",
-	            strerror(ret),
-	            ret);
-	errno = ret;
-
-	return NULL;
-}
-
-#define FSLOG_TOPSPEC "|<FSLOG_SPEC>"
-
-#define FSLOG_SPEC \
-"    FSLOG_SPEC      := fslog[:<PATH>[:<FS_FLAG>[:<FS_MODE>[:<SEVERITY>[:<STD_FORMAT>[:FACILITY]]]]]]\n"
-
-#define FSLOG_FLAG \
-"\n" \
-"    FS_FLAG         :=  none|dflt|nofollow\n"
-
-#define FSLOG_WHERE \
-"    FSLOG_SPEC  -- format / redirect command standard I/O stream(s) to file\n" \
-"                   (defaults to `fslog:none:none:0640:warn:rfc3164,pid:user')\n" \
-"    PATH        -- pathname to output file\n" \
-"    FS_FLAG     -- open / create PATH using FSFLAG open(2) flags\n" \
-"                   (defaults to `none')\n" \
-"    FS_MODE     -- PATH file creation permission bits, octal integer with\n" \
-"                   eXecute bits rejected (defaults to `0640')\n" \
-
-#else  /* !defined(CONFIG_ELOG_FILE) */
-
-#define FSLOG_TOPSPEC ""
-#define FSLOG_SPEC    ""
-#define FSLOG_FLAG    ""
-#define FSLOG_WHERE   ""
-
-#endif /* defined(CONFIG_ELOG_FILE) */
-
 #if defined(CONFIG_ELOG_SYSLOG)
+
+static int __elog_nonull(1, 3)
+elogger_parse_syslog_severity_spec(char * __restrict  arg,
+                                   size_t             len __unused,
+                                   void *  __restrict data)
+{
+	elog_assert(arg);
+	elog_assert(arg[0]);
+	elog_assert(len);
+	elog_assert(data);
+
+	struct elogger_context * ctx = data;
+
+	return elog_parse_syslog_severity(&ctx->parse,
+	                                  (struct elog_syslog_conf *)ctx->conf,
+	                                  arg);
+}
+
+static int __elog_nonull(1, 3)
+elogger_parse_syslog_format_spec(char * __restrict arg,
+                                 size_t            len __unused,
+                                 void * __restrict data)
+{
+	elog_assert(arg);
+	elog_assert(arg[0]);
+	elog_assert(len);
+	elog_assert(data);
+
+	struct elogger_context * ctx = data;
+
+	return elog_parse_syslog_format(&ctx->parse,
+	                                (struct elog_syslog_conf *)ctx->conf,
+	                                arg);
+}
+
+static int __elog_nonull(1, 3)
+elogger_parse_syslog_facility_spec(char * __restrict  arg,
+                                   size_t             len __unused,
+                                   void *  __restrict data)
+{
+	elog_assert(arg);
+	elog_assert(arg[0]);
+	elog_assert(len);
+	elog_assert(data);
+
+	struct elogger_context * ctx = data;
+
+	return elog_parse_syslog_facility(&ctx->parse,
+	                                  (struct elog_syslog_conf *)ctx->conf,
+	                                  arg);
+}
 
 static struct elog * __elog_nonull(1)
 elogger_build_syslog(char * __restrict spec)
 {
 	elog_assert(spec);
 
-	int                           ret;
-	struct elog *                 sublog;
-	static const struct elog_conf dflt = {
-		.format   = ELOG_TAG_FMT | ELOG_PID_FMT,
-		.severity = ELOG_WARNING_SEVERITY,
-		.facility = LOG_USER
+	int                                  ret;
+	struct elog *                        sublog;
+	static const struct elog_syslog_conf dflt = {
+		.super.severity = ELOG_WARNING_SEVERITY,
+		.format         = ELOG_TAG_FMT | ELOG_PID_FMT,
+		.facility       = LOG_USER
 	};
 
 	if (spec[0]) {
-		struct elog_conf                   conf;
+		struct elog_syslog_conf            conf;
 		static ustr_parse_token_fn * const parsers[] = {
-			elogger_parse_severity_spec,
-			elogger_parse_format_spec,
-			elogger_parse_facility_spec
+			elogger_parse_syslog_severity_spec,
+			elogger_parse_syslog_format_spec,
+			elogger_parse_syslog_facility_spec
 		};
 		struct elogger_context             ctx = {
-			.conf    = &conf,
+			.conf    = (struct elog_conf *)&conf,
 			.count   = array_nr(parsers),
 			.parsers = parsers
 		};
@@ -1210,7 +1106,7 @@ elogger_build_syslog(char * __restrict spec)
 		return sublog;
 
 	ret = errno;
-	elogger_err("cannot create syslog logger: %s (%d).\n",
+	elogger_err("cannot create syslog logger: %s (%d).",
 	            strerror(ret),
 	            ret);
 	errno = ret;
@@ -1221,13 +1117,11 @@ elogger_build_syslog(char * __restrict spec)
 #define SYSLOG_TOPSPEC "|<SYSLOG_SPEC>"
 
 #define SYSLOG_SPEC \
-"    SYSLOG_SPEC     := syslog[:<SEVERITY>[:<SYSLOG_FORMAT>[:<FACILITY>]]]\n"
+"    SYSLOG_SPEC   := syslog[:<SEVERITY>[:<SYSLOG_FORMAT>[:<FACILITY>]]]\n"
 
 #define SYSLOG_FORMAT \
 "\n" \
-"    SYSLOG_FORMAT   := none|dflt|<SYSLOG_FLAGS>\n" \
-"    SYSLOG_FLAGS    := <SYSLOG_FLAG>[,<SYSLOG_FLAGS>]\n" \
-"    SYSLOG_FLAG     := tag|pid|severity\n"
+"    SYSLOG_FORMAT := none|dflt|pid\n"
 
 #define SYSLOG_WHERE \
 "    SYSLOG_SPEC -- format / redirect command standard I/O stream(s) to syslog\n" \
@@ -1241,6 +1135,132 @@ elogger_build_syslog(char * __restrict spec)
 #define SYSLOG_WHERE   ""
 
 #endif /* defined(CONFIG_ELOG_SYSLOG) */
+
+#if defined(CONFIG_ELOG_MQUEUE)
+
+static int __elog_nonull(1, 3)
+elogger_parse_mqueue_name_spec(char * __restrict arg,
+                               size_t            len __unused,
+                               void * __restrict data)
+{
+	elog_assert(arg);
+	elog_assert(arg[0]);
+	elog_assert(len);
+	elog_assert(data);
+
+	struct elogger_context * ctx = data;
+
+	return elog_parse_mqueue_name(&ctx->parse,
+	                              (struct elog_mqueue_conf *)ctx->conf,
+	                              arg);
+}
+
+static int __elog_nonull(1, 3)
+elogger_parse_mqueue_severity_spec(char * __restrict  arg,
+                                   size_t             len __unused,
+                                   void *  __restrict data)
+{
+	elog_assert(arg);
+	elog_assert(arg[0]);
+	elog_assert(len);
+	elog_assert(data);
+
+	struct elogger_context * ctx = data;
+
+	return elog_parse_mqueue_severity(&ctx->parse,
+	                                  (struct elog_mqueue_conf *)ctx->conf,
+	                                  arg);
+}
+
+static int __elog_nonull(1, 3)
+elogger_parse_mqueue_facility_spec(char * __restrict  arg,
+                                   size_t             len __unused,
+                                   void *  __restrict data)
+{
+	elog_assert(arg);
+	elog_assert(arg[0]);
+	elog_assert(len);
+	elog_assert(data);
+
+	struct elogger_context * ctx = data;
+
+	return elog_parse_mqueue_facility(&ctx->parse,
+	                                  (struct elog_mqueue_conf *)ctx->conf,
+	                                  arg);
+}
+
+static struct elog * __elog_nonull(1)
+elogger_build_mqlog(char * __restrict spec)
+{
+	elog_assert(spec);
+
+	int                                  ret;
+	struct elog *                        sublog;
+	static const struct elog_mqueue_conf dflt = {
+		.super.severity = ELOG_WARNING_SEVERITY,
+		.facility       = LOG_LOCAL0,
+		.name           = "/init"
+	};
+
+	if (spec[0]) {
+		struct elog_mqueue_conf            conf;
+		static ustr_parse_token_fn * const parsers[] = {
+			elogger_parse_mqueue_name_spec,
+			elogger_parse_mqueue_severity_spec,
+			elogger_parse_mqueue_facility_spec
+		};
+		struct elogger_context             ctx = {
+			.conf    = (struct elog_conf *)&conf,
+			.count   = array_nr(parsers),
+			.parsers = parsers
+		};
+
+		elog_init_mqueue_parse(&ctx.parse, &conf, &dflt);
+
+		ret = elogger_finalize_parsing(&ctx, spec, "mqlog");
+		if (ret) {
+			errno = -ret;
+			return NULL;
+		}
+
+		sublog = elog_create_mqueue(&conf);
+	}
+	else
+		sublog = elog_create_mqueue(&dflt);
+
+	if (sublog)
+		return sublog;
+
+	ret = errno;
+	elogger_err("cannot create mqlog logger: %s (%d).",
+	            strerror(ret),
+	            ret);
+	errno = ret;
+
+	return NULL;
+}
+
+#define MQLOG_TOPSPEC "|<MQLOG_SPEC>"
+
+#define MQLOG_SPEC \
+"    MQLOG_SPEC    := mqlog[:<MQLOG_NAME>[:<SEVERITY>[:<FACILITY>]]]]\n"
+
+#define MQLOG_FORMAT ""
+
+#define MQLOG_WHERE \
+"    MQLOG_SPEC  -- format / redirect command standard I/O stream(s) to message\n" \
+"                   queue (defaults to `/init:warn:local0')\n" \
+"    MQLOG_NAME  -- POSIX message queue name, including the leading `/',\n" \
+"                   [2:255] bytes long string.\n"
+
+#else /* !defined(CONFIG_ELOG_MQUEUE) */
+
+#define MQLOG_TOPSPEC ""
+#define MQLOG_SPEC    ""
+#define MQLOG_FORMAT  ""
+#define MQLOG_WHERE   ""
+
+#endif /* defined(CONFIG_ELOG_MQUEUE) */
 
 typedef struct elog *
         (elogger_build_fn)(char * __restrict spec) __elog_nonull(1);
@@ -1262,14 +1282,14 @@ elogger_find_sublog_builder(const char * __restrict type)
 	unsigned int                        b;
 	static const struct elogger_builder builders[] = {
 #if defined(CONFIG_ELOG_STDIO)
-		ELOGGER_INIT_BUILDER("stdlog", elogger_build_stdlog),
+		ELOGGER_INIT_BUILDER("stdlog", elogger_build_stdlog)
 #endif /* defined(CONFIG_ELOG_STDIO) */
-#if defined(CONFIG_ELOG_FILE)
-		ELOGGER_INIT_BUILDER("fslog",  elogger_build_fslog),
-#endif /* defined(CONFIG_ELOG_FILE) */
 #if defined(CONFIG_ELOG_SYSLOG)
-		ELOGGER_INIT_BUILDER("syslog", elogger_build_syslog)
+		, ELOGGER_INIT_BUILDER("syslog", elogger_build_syslog)
 #endif /* defined(CONFIG_ELOG_SYSLOG) */
+#if defined(CONFIG_ELOG_MQUEUE)
+		, ELOGGER_INIT_BUILDER("mqlog",  elogger_build_mqlog),
+#endif /* defined(CONFIG_ELOG_MQUEUE) */
 	};
 
 	for (b = 0; b < array_nr(builders); b++) {
@@ -1281,7 +1301,7 @@ elogger_find_sublog_builder(const char * __restrict type)
 
 	elog_assert(b <= array_nr(builders));
 
-	elogger_err("unknown '%s' logger type specified.\n", type);
+	elogger_err("unknown '%s' logger type specified.", type);
 
 	return NULL;
 }
@@ -1305,7 +1325,7 @@ elogger_build_pipe_redir(struct elogger_redir ** __restrict redir,
 		return -ENOENT;
 
 	if (*redir == (struct elogger_redir *)&elogger_null) {
-		elogger_err("cannot mix '%s' and 'null' loggers.\n", type);
+		elogger_err("cannot mix '%s' and 'null' loggers.", type);
 		return -EINVAL;
 	}
 
@@ -1318,7 +1338,7 @@ elogger_build_pipe_redir(struct elogger_redir ** __restrict redir,
 		if (!*redir) {
 			err = -errno;
 
-			elogger_err("cannot create pipe redirect: %s (%d).\n",
+			elogger_err("cannot create pipe redirect: %s (%d).",
 			            strerror(-err),
 			            -err);
 			goto destroy;
@@ -1328,7 +1348,7 @@ elogger_build_pipe_redir(struct elogger_redir ** __restrict redir,
 	err = elog_register_multi_sublog(
 		&((struct elogger_pipe_redir *)(*redir))->log, sublog);
 	if (err) {
-		elogger_err("cannot register logger: %s (%d).\n",
+		elogger_err("cannot register logger: %s (%d).",
 		            strerror(-err),
 		            -err);
 		goto destroy;
@@ -1524,26 +1544,26 @@ elogger_wait_child(void)
 "    When unspecified, no format / redirection occurs.\n" \
 "\n" \
 "With:\n" \
-"    SPEC            := null" STDLOG_TOPSPEC FSLOG_TOPSPEC SYSLOG_TOPSPEC "\n" \
+"    SPEC          := null" STDLOG_TOPSPEC SYSLOG_TOPSPEC MQLOG_TOPSPEC"\n" \
 STDLOG_SPEC \
-FSLOG_SPEC \
 SYSLOG_SPEC \
+MQLOG_SPEC \
 "\n" \
-"    SEVERITY        := dflt|emerg|alert|crit|err|warn|notice|info|debug\n" \
-"    FACILITY        := dflt|auth|authpriv|cron|daemon|ftp|lpr|mail|news|\n" \
-"                       syslog|user|uucp|local0|local1|local2|local3|local4|\n" \
-"                       local5|local6|local7\n" \
+"    SEVERITY      := dflt|emerg|alert|crit|err|warn|notice|info|debug\n" \
+"    FACILITY      := dflt|auth|authpriv|cron|daemon|ftp|lpr|mail|news|\n" \
+"                     syslog|user|uucp|local0|local1|local2|local3|local4|\n" \
+"                     local5|local6|local7\n" \
 STDLOG_FORMAT \
-FSLOG_FLAG \
 SYSLOG_FORMAT \
+MQLOG_FORMAT \
 "\n" \
 "Where:\n" \
 "    CMD         -- command to spawn\n" \
 "    null        -- disable corresponding command output\n" \
 "    TAG         -- logging message tag, [1:31] bytes long string\n" \
 STDLOG_WHERE \
-FSLOG_WHERE \
-SYSLOG_WHERE
+SYSLOG_WHERE \
+MQLOG_WHERE
 
 static void __elog_nonull(1)
 elogger_usage(FILE * stdio)
@@ -1568,7 +1588,7 @@ elogger_build_redir(struct elogger_redir ** __restrict redir,
 			if (!*sep) {
 				elogger_err(
 					"logger parsing error: "
-					"missing '%s' logger specification.\n",
+					"missing '%s' logger specification.",
 					spec);
 				return -EINVAL;
 			}
@@ -1617,11 +1637,15 @@ elogger_build_from_cmdln(int argc, char * const argv[])
 			break;
 
 		case 'o':
-			ret = elogger_build_redir(&elogger_stdout, optarg);
+			if (elogger_build_redir(&elogger_stdout, optarg))
+			    return -1;
+			ret = 0;
 			break;
 
 		case 'e':
-			ret = elogger_build_redir(&elogger_stderr, optarg);
+			if (elogger_build_redir(&elogger_stderr, optarg))
+				return -1;
+			ret = 0;
 			break;
 
 		case 'h':

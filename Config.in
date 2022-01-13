@@ -14,26 +14,52 @@ config ELOG_HAVE_IMPL
 	bool
 	default n
 
+config ELOG_HAVE_FORMAT
+	bool
+	default n
+
+config ELOG_HAVE_FACILITY
+	bool
+	default n
+
 config ELOG_STDIO
 	bool "Standard I/Os"
 	select ELOG_HAVE_IMPL
+	select ELOG_HAVE_FORMAT
 	default y
 	help
-	  Build elog library with standard I/Os support.
-
-config ELOG_FILE
-	bool "File"
-	select ELOG_STDIO
-	default y
-	help
-	  Build elog library with file support.
+	  Build elog library with standard I/O error support.
 
 config ELOG_SYSLOG
 	bool "Syslog"
 	select ELOG_HAVE_IMPL
+	select ELOG_HAVE_FORMAT
+	select ELOG_HAVE_FACILITY
 	default y
 	help
 	  Build elog library with syslog support.
+
+config ELOG_MQUEUE
+	bool "Message queue"
+	select ELOG_HAVE_IMPL
+	select ELOG_HAVE_FACILITY
+	default y
+	help
+	  Build elog library with POSIX message queue support.
+
+config ELOG_MQUEUE_PARSER
+	bool
+	default n
+	help
+	  Build elog library with POSIX message queue parsing support.
+
+config ELOG_MQUEUE_UTIL
+	bool "Message queue utility"
+	depends on ELOG_MQUEUE
+	select ELOG_MQUEUE_PARSER
+	default ELOG_MQUEUE
+	help
+	  Build `elog_mqueue', a utility to manipulate an eLog message queue.
 
 config ELOG_MULTI
 	bool "Multi logger"
@@ -49,6 +75,15 @@ config ELOG_LOGGER
 	default ELOG_HAVE_IMPL
 	help
 	  Build elog library with multiple logger support.
+
+config ELOG_DAEMON
+	bool "elogd"
+	select ELOG_SYSLOG
+	select ELOG_MQUEUE
+	select ELOG_MQUEUE_PARSER
+	default y
+	help
+	  Build elogd daemon, an early / boot-time syslog daemon.
 
 config ELOG_SAMPLE
 	bool "elogger sample apps"

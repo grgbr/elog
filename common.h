@@ -1,5 +1,4 @@
 #ifndef _ELOG_COMMON_H
-#define _ELOG_COMMON_H
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE

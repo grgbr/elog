@@ -26,15 +26,13 @@
 "    -s|--severity <SEVERITY> -- log message with severity <= SEVERITY\n" \
 "                                (defaults to `notice')\n" \
 "    -m|--format   <FORMAT>   -- format message according to FORMAT\n" \
-"                                specification, (defaults to `tag')\n" \
+"                                specification, (defaults to `pid')\n" \
 "    -f|--facility <FACILITY> -- log message using facility FACILITY\n" \
 "                                (defaults to `user')\n" \
 "    -h|--help                -- this help message\n" \
 "Where:\n" \
 "    SEVERITY := dflt|emerg|alert|crit|err|warn|notice|info|debug\n" \
-"    FORMAT   := none|dflt|<FLAGS>\n" \
-"    FLAGS    := <FLAG>[,<FLAGS>]\n" \
-"    FLAG     := tag|pid|severity\n" \
+"    FORMAT   := none|dflt|pid\n" \
 "    FACILITY := dflt|auth|authpriv|cron|daemon|ftp|lpr|mail|news|syslog|user|\n" \
 "                user|local0|local1|local2|local3|local4|local5|local6|local7\n" \
 "With:\n" \
@@ -46,10 +44,10 @@ show_usage(void)
 	fprintf(stderr, USAGE, program_invocation_short_name);
 }
 
-static const struct elog_conf dflt = {
-	.format   = ELOG_TAG_FMT | ELOG_PID_FMT,
-	.severity = ELOG_NOTICE_SEVERITY,
-	.facility = LOG_USER
+static const struct elog_syslog_conf dflt = {
+	.super.severity = ELOG_NOTICE_SEVERITY,
+	.format         = ELOG_PID_FMT,
+	.facility       = LOG_USER
 };
 
 int
@@ -57,17 +55,17 @@ main(int argc, char * const argv[])
 {
 	int ret;
 
-	struct elog_parse  ctx;
-	struct elog_conf   conf;
-	struct elog_syslog log;
+	struct elog_parse       ctx;
+	struct elog_syslog_conf conf;
+	struct elog_syslog      log;
 
 	elog_init_syslog_parse(&ctx, &conf, &dflt);
 
 	while (true) {
 		static const struct option opts[] = {
 			{ "tag",      required_argument, NULL, 't' },
-			{ "format",   required_argument, NULL, 'm' },
 			{ "severity", required_argument, NULL, 's' },
+			{ "format",   required_argument, NULL, 'm' },
 			{ "facility", required_argument, NULL, 'f' },
 			{ "help",     no_argument,       NULL, 'h' },
 			{ NULL,       0,                 NULL,  0 }
@@ -76,7 +74,8 @@ main(int argc, char * const argv[])
 		ret = getopt_long(argc, argv, ":t:m:s:f:h", opts, NULL);
 		if (ret < 0) {
 			/* End of command line option parsing. */
-			ret = elog_realize_parse(&ctx, &conf);
+			ret = elog_realize_parse(&ctx,
+			                         (struct elog_conf *)&conf);
 			if (ret)
 				goto show_error;
 			break;
@@ -93,16 +92,16 @@ main(int argc, char * const argv[])
 			elog_setup(optarg, ELOG_DFLT_PID);
 			break;
 
-		case 'm':
-			ret = elog_parse_format(&ctx, &conf, optarg);
+		case 's':
+			ret = elog_parse_syslog_severity(&ctx, &conf, optarg);
 			break;
 
-		case 's':
-			ret = elog_parse_severity(&ctx, &conf, optarg);
+		case 'm':
+			ret = elog_parse_syslog_format(&ctx, &conf, optarg);
 			break;
 
 		case 'f':
-			ret = elog_parse_facility(&ctx, &conf, optarg);
+			ret = elog_parse_syslog_facility(&ctx, &conf, optarg);
 			break;
 
 		case 'h':
@@ -135,13 +134,7 @@ main(int argc, char * const argv[])
 
 	elog_fini_parse(&ctx);
 
-	ret = elog_init_syslog(&log, &conf);
-	if (ret) {
-		show_error("cannot initialize logger: %s (%d).\n",
-		           strerror(-ret),
-		           -ret);
-		return EXIT_FAILURE;
-	}
+	elog_init_syslog(&log, &conf);
 
 	elog_warn(&log, "logging input message: %s", argv[optind]);
 
