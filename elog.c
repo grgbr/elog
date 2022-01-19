@@ -714,6 +714,7 @@ elog_fill_head_proctime(char * __restrict head)
 
 static size_t __elog_nonull(1, 2) __nothrow
 elog_fill_stdio_head(char * __restrict                         head,
+                     enum elog_severity                        severity,
                      const struct elog_stdio_conf * __restrict conf)
 {
 	elog_assert_stdio_conf(conf);
@@ -734,8 +735,7 @@ elog_fill_stdio_head(char * __restrict                         head,
 	if (conf->format & ELOG_SEVERITY_FMT) {
 		if (bytes)
 			head[bytes++] = ' ';
-		bytes += elog_fill_head_severity(&head[bytes],
-		                                 conf->super.severity);
+		bytes += elog_fill_head_severity(&head[bytes], severity);
 	}
 
 	if (bytes)
@@ -765,7 +765,7 @@ elog_vlog_stdio(struct elog * __restrict logger,
 		severity = log->conf.super.severity;
 
 	/* Cook standard message header according to setup... */
-	hlen = elog_fill_stdio_head(log->line, &log->conf);
+	hlen = elog_fill_stdio_head(log->line, severity, &log->conf);
 
 	/*
 	 * ...then fill in the message body given in argument.
