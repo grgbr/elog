@@ -6,7 +6,7 @@
 #include <utils/file.h>
 #include <utils/dir.h>
 #include <utils/signal.h>
-#include <grp.h>
+#include <utils/pwd.h>
 #include <ctype.h>
 #include <sys/file.h>
 #include <sys/uio.h>
@@ -28,12 +28,12 @@ static gid_t elogd_gid;
 #define CONFIG_ELOGD_MQUEUE_FETCH (16U)
 #define CONFIG_ELOGD_SVC_MODE     (0420)
 #define CONFIG_ELOGD_SVC_GROUP    "logpost"
-#define CONFIG_ELOGD_DIR_PATH     "/tmp/log"
+#define CONFIG_ELOGD_DIR_PATH     "/run/elog"
 #define CONFIG_ELOGD_STAT_PATH    "/run/elogd/stat"
 #define CONFIG_ELOGD_SOCK_PATH    "/run/elogd/sock"
 #define CONFIG_ELOGD_FILE_BASE    "messages"
 #define CONFIG_ELOGD_FILE_MODE    (0640)
-#define CONFIG_ELOGD_FILE_GROUP   "logview"
+#define CONFIG_ELOGD_FILE_GROUP   "elogd"
 #define CONFIG_ELOGD_MAX_SIZE     (128 * 1024)
 #define CONFIG_ELOGD_MAX_ROT      (2U)
 
@@ -909,16 +909,12 @@ elogd_open_store_file(struct elogd_store * __restrict store)
 	}
 
 	if (elogd_conf.svc_group) {
-		const struct group * grp;
-
-		grp = getgrnam(elogd_conf.file_group);
-		if (!grp)
-			elogd_warn("'%s': logging file group not found, "
+		err = upwd_get_gid_byname(elogd_conf.file_group, &gid);
+		if (err)
+			elogd_warn("'%s': invalid logging file group, "
 			           "using default GID %d",
 			           elogd_conf.file_group,
 			           gid);
-		else
-			gid = grp->gr_gid;
 	}
 	err = ufile_fchown(store->fd, elogd_uid, gid);
 	if (err)
@@ -2131,19 +2127,15 @@ elogd_open_svc(struct elogd_svc * __restrict   svc,
 		goto close;
 
 	if (elogd_conf.svc_group) {
-		const struct group * grp;
-
-		grp = getgrnam(elogd_conf.svc_group);
-		if (!grp)
-			elogd_warn("'%s': logging socket group not found, "
+		err = upwd_get_gid_byname(elogd_conf.svc_group, &gid);
+		if (err)
+			elogd_warn("'%s': invalid logging socket group, "
 			           "using default GID %d",
 			           elogd_conf.svc_group,
 			           gid);
-		else
-			gid = grp->gr_gid;
 	}
 
-	err = ufd_chown(CONFIG_ELOGD_SOCK_PATH, elogd_uid, gid);
+	err = upath_chown(CONFIG_ELOGD_SOCK_PATH, elogd_uid, gid);
 	if (err)
 		goto close;
 
@@ -2357,14 +2349,13 @@ elogd_open_mqueue(struct elogd_mqueue * __restrict mqueue,
 		goto close;
 
 	if (((st.st_mode & (ALLPERMS & ~(S_IRUSR | S_IWUSR))) != S_IRGRP) ||
-	    (st.st_uid != 0) ||
-	    (st.st_gid != elogd_gid)) {
+	    (st.st_uid != 0)) {
 		err = -EPERM;
 		goto close;
 	}
 
 	umq_getattr(fd, &attr);
-	if ((attr.mq_maxmsg < 1) || (attr.mq_msgsize < 1)) {
+	if ((attr.mq_maxmsg < 1) || (attr.mq_msgsize < (long)ELOG_LINE_MAX)) {
 		err = -EPERM;
 		goto close;
 	}
@@ -2380,7 +2371,7 @@ elogd_open_mqueue(struct elogd_mqueue * __restrict mqueue,
 	return 0;
 
 close:
-	umq_close(mqueue->fd);
+	umq_close(fd);
 
 	return err;
 }
