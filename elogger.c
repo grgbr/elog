@@ -1197,7 +1197,7 @@ elogger_build_mqlog(char * __restrict spec)
 	int                                  ret;
 	struct elog *                        sublog;
 	static const struct elog_mqueue_conf dflt = {
-		.super.severity = ELOG_WARNING_SEVERITY,
+		.super.severity = ELOG_NOTICE_SEVERITY,
 		.facility       = LOG_LOCAL0,
 		.name           = "/init"
 	};
@@ -1249,7 +1249,7 @@ elogger_build_mqlog(char * __restrict spec)
 
 #define MQLOG_WHERE \
 "    MQLOG_SPEC  -- format / redirect command standard I/O stream(s) to message\n" \
-"                   queue (defaults to `/init:warn:local0')\n" \
+"                   queue (defaults to `/init:notice:local0')\n" \
 "    MQLOG_NAME  -- POSIX message queue name, including the leading `/',\n" \
 "                   [2:255] bytes long string.\n"
 
