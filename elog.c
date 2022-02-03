@@ -712,7 +712,7 @@ elog_fill_head_proctime(char * __restrict head)
 	return ELOG_TIME_MAX_LEN + 2;
 }
 
-static size_t __elog_nonull(1, 2) __nothrow
+static size_t __elog_nonull(1, 3) __nothrow
 elog_fill_stdio_head(char * __restrict                         head,
                      enum elog_severity                        severity,
                      const struct elog_stdio_conf * __restrict conf)
