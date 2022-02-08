@@ -29,13 +29,6 @@ elog_mqueue-ldflags        := $(EXTRA_LDFLAGS) -lelog
 elog_mqueue-pkgconf         = libutils
 elog_mqueue-path           := $(SBINDIR)/elog_mqueue
 
-bins                       += $(call kconf_enabled,ELOG_DAEMON,elogd)
-elogd-objs                  = elogd.o
-elogd-cflags                = $(common-cflags)
-elogd-ldflags              := $(EXTRA_LDFLAGS) -lelog
-elogd-pkgconf               = libutils
-elogd-path                 := $(SBINDIR)/elogd
-
 ifeq ($(CONFIG_ELOG_SAMPLE),y)
 
 bins                       += $(call kconf_enabled,ELOG_STDIO,elog_sample_hello)

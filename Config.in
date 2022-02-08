@@ -48,7 +48,7 @@ config ELOG_MQUEUE
 	  Build elog library with POSIX message queue support.
 
 config ELOG_MQUEUE_PARSER
-	bool
+	bool "Message queue parser"
 	default n
 	help
 	  Build elog library with POSIX message queue parsing support.
@@ -75,15 +75,6 @@ config ELOG_LOGGER
 	default ELOG_HAVE_IMPL
 	help
 	  Build elog library with multiple logger support.
-
-config ELOG_DAEMON
-	bool "elogd"
-	select ELOG_SYSLOG
-	select ELOG_MQUEUE
-	select ELOG_MQUEUE_PARSER
-	default y
-	help
-	  Build elogd daemon, an early / boot-time syslog daemon.
 
 config ELOG_SAMPLE
 	bool "elogger sample apps"
