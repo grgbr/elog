@@ -75,3 +75,9 @@ endef
 
 pkgconfigs          := libelog.pc
 libelog.pc-tmpl     := libelog_pkgconf_tmpl
+
+################################################################################
+# Source code tags generation
+################################################################################
+
+tagfiles := $(shell find $(CURDIR) $(HEADERDIR) -type f)
