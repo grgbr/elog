@@ -1,5 +1,5 @@
 config-in                  := Config.in
-config-h                   := elog/config.h
+config-h                   := $(PACKAGE)/config.h
 
 ifeq ($(findstring config,$(MAKECMDGOALS)),)
 ifneq ($(CONFIG_ELOG_HAVE_IMPL),y)

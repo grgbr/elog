@@ -1109,6 +1109,7 @@ elog_parse_mqueue_msg(struct elog_mqueue_head * __restrict msg, size_t size)
 
 	ssize_t         blen;
 	struct timespec now;
+	struct timespec tstamp;
 
 	if (msg->pid <= 0)
 		return -ESRCH;
@@ -1126,8 +1127,13 @@ elog_parse_mqueue_msg(struct elog_mqueue_head * __restrict msg, size_t size)
 	if (blen <= msg->body)
 		return (blen < 0) ? blen : -ENODATA;
 
+	/*
+	 * Copy content of msg->tstamp packed content to prevent from unaligned
+	 * pointer accesses.
+	 */
+	tstamp = msg->tstamp;
 	utime_boot_now(&now);
-	if (!utime_tspec_after(&now, &msg->tstamp))
+	if (!utime_tspec_after(&now, &tstamp))
 		msg->tstamp = now;
 
 	return blen - msg->body;
@@ -1309,6 +1315,7 @@ elog_vlog_mqueue(struct elog * __restrict logger,
 	struct elog_mqueue_head * head = (struct elog_mqueue_head *)log->line;
 	size_t                    hlen = sizeof(*head) + elog_tag_len;
 	size_t                    mlen;
+	struct timespec           now;
 	ssize_t                   ret;
 
 	elog_assert_mqueue_conf(&log->conf);
@@ -1332,7 +1339,8 @@ elog_vlog_mqueue(struct elog * __restrict logger,
 		return;
 
 	/* Cook message header... */
-	utime_boot_now(&head->tstamp);
+	utime_boot_now(&now);
+	head->tstamp = now;
 	head->pid = elog_pid;
 	head->prio = LOG_MAKEPRI(log->conf.facility, severity);
 	head->body = (unsigned char)elog_tag_len;
