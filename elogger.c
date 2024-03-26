@@ -957,7 +957,7 @@ elogger_build_stdlog(char * __restrict spec)
 		};
 		struct elogger_context             ctx = {
 			.conf    = (struct elog_conf *)&conf,
-			.count   = array_nr(parsers),
+			.count   = stroll_array_nr(parsers),
 			.parsers = parsers
 		};
 
@@ -1085,7 +1085,7 @@ elogger_build_syslog(char * __restrict spec)
 		};
 		struct elogger_context             ctx = {
 			.conf    = (struct elog_conf *)&conf,
-			.count   = array_nr(parsers),
+			.count   = stroll_array_nr(parsers),
 			.parsers = parsers
 		};
 
@@ -1211,7 +1211,7 @@ elogger_build_mqlog(char * __restrict spec)
 		};
 		struct elogger_context             ctx = {
 			.conf    = (struct elog_conf *)&conf,
-			.count   = array_nr(parsers),
+			.count   = stroll_array_nr(parsers),
 			.parsers = parsers
 		};
 
@@ -1292,14 +1292,14 @@ elogger_find_sublog_builder(const char * __restrict type)
 #endif /* defined(CONFIG_ELOG_MQUEUE) */
 	};
 
-	for (b = 0; b < array_nr(builders); b++) {
+	for (b = 0; b < stroll_array_nr(builders); b++) {
 		const struct elogger_builder * builder = &builders[b];
 
 		if (!strcmp(type, builder->type))
 			return builder;
 	}
 
-	elog_assert(b <= array_nr(builders));
+	elog_assert(b <= stroll_array_nr(builders));
 
 	elogger_err("unknown '%s' logger type specified.", type);
 
@@ -1437,7 +1437,7 @@ elogger_spawn_child(char * const args[])
 {
 	int                  ret;
 	sigset_t             orig_msk;
-	struct usig_orig_act orig_acts[array_nr(elogger_sig_acts)];
+	struct usig_orig_act orig_acts[stroll_array_nr(elogger_sig_acts)];
 
 	elogger_child_act.sa_mask = *usig_empty_msk;
 	elogger_term_act.sa_mask = *usig_empty_msk;
@@ -1449,7 +1449,7 @@ elogger_spawn_child(char * const args[])
 	usig_procmask(SIG_SETMASK, usig_full_msk, &orig_msk);
 	usig_setup_actions(elogger_sig_acts,
 	                   orig_acts,
-	                   array_nr(elogger_sig_acts));
+	                   stroll_array_nr(elogger_sig_acts));
 
 	elogger_signo = 0;
 	elogger_child = vfork();
@@ -1466,7 +1466,7 @@ elogger_spawn_child(char * const args[])
 	else if (!elogger_child)
 		/* Child: elogger_exec_child() does not return. */
 		elogger_exec_child(orig_acts,
-		                   array_nr(orig_acts),
+		                   stroll_array_nr(orig_acts),
 		                   &orig_msk,
 		                   args);
 

@@ -97,10 +97,10 @@ setup_sigs(void)
 	unsigned int              s;
 
 	term_act.sa_mask = *usig_empty_msk;
-	for (s = 0; s < array_nr(sig_acts); s++)
+	for (s = 0; s < stroll_array_nr(sig_acts); s++)
 		usig_addset(&term_act.sa_mask, sig_acts[s].no);
 
-	usig_setup_actions(sig_acts, NULL, array_nr(sig_acts));
+	usig_setup_actions(sig_acts, NULL, stroll_array_nr(sig_acts));
 }
 
 #if defined(CONFIG_ELOG_DEBUG)

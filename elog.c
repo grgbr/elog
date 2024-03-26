@@ -189,7 +189,7 @@ elog_parse_severity(struct elog_parse * __restrict  parse,
 		return 0;
 	}
 
-	svrt = elog_parse_kword(kwords, array_nr(kwords), arg);
+	svrt = elog_parse_kword(kwords, stroll_array_nr(kwords), arg);
 	if (svrt >= 0) {
 		*severity = svrt;
 		return 0;
@@ -274,7 +274,7 @@ elog_parse_format_flag(char * __restrict arg,
 		return 0;
 	}
 
-	ret = elog_parse_kword(kwords, array_nr(kwords), arg);
+	ret = elog_parse_kword(kwords, stroll_array_nr(kwords), arg);
 	elog_assert(ret);
 	if (ret > 0) {
 		ctx->flags |= ret;
@@ -450,7 +450,7 @@ elog_parse_facility(struct elog_parse * __restrict parse,
 		ELOG_INIT_KWORD("local7",   LOG_LOCAL7)
 	};
 
-	fac = elog_parse_kword(kwords, array_nr(kwords), arg);
+	fac = elog_parse_kword(kwords, stroll_array_nr(kwords), arg);
 	if (fac >= 0) {
 		*facility = fac;
 		return 0;
@@ -793,7 +793,7 @@ elog_vlog_stdio(struct elog * __restrict logger,
 			}
 		};
 
-		ret = writev(STDERR_FILENO, vecs, array_nr(vecs));
+		ret = writev(STDERR_FILENO, vecs, stroll_array_nr(vecs));
 	} while ((ret < 0) && (errno == EINTR));
 }
 
