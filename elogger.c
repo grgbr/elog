@@ -1,4 +1,5 @@
 #include "common.h"
+#include <stroll/cdefs.h>
 #include <utils/pipe.h>
 #include <utils/file.h>
 #include <utils/poll.h>

@@ -14,13 +14,13 @@ libelog.so-objs             = elog.o
 libelog.so-cflags           = $(common-cflags) -DPIC -fpic
 libelog.so-ldflags          = $(EXTRA_LDFLAGS) \
                               -shared -Bsymbolic -fpic -Wl,-soname,libelog.so
-libelog.so-pkgconf          = libutils
+libelog.so-pkgconf          = libutils libstroll
 
 bins                        = $(call kconf_enabled,ELOG_LOGGER,elogger)
 elogger-objs                = elogger.o
 elogger-cflags              = $(common-cflags)
 elogger-ldflags            := $(EXTRA_LDFLAGS) -lelog
-elogger-pkgconf            := libutils
+elogger-pkgconf            := libutils libstroll
 
 bins                       += $(call kconf_enabled,ELOG_MQUEUE_UTIL,elog_mqueue)
 elog_mqueue-objs            = elog_mqueue.o

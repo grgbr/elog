@@ -1,4 +1,5 @@
 #include "common.h"
+#include <stroll/cdefs.h>
 #include <utils/time.h>
 #include <utils/string.h>
 #include <utils/file.h>
