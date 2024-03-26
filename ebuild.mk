@@ -67,10 +67,10 @@ includedir=$${prefix}/include
 
 Name: libelog
 Description: Embedded logging library
-Version: %%PKG_VERSION%%
+Version: $(VERSION)
 Requires:
 Cflags: -I$${includedir}
-Libs: -L$${libdir} -lelog
+Libs: -L$${libdir} -Wl,--push-state,--as-needed -lelog -Wl,--pop-state
 endef
 
 pkgconfigs          := libelog.pc
