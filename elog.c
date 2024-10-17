@@ -568,7 +568,7 @@ elog_fill_line_msg(char *       line,
 		return 0;
 
 	/* Fixup vsnprintf() returned length in case of overflow. */
-	len = (int)umin((size_t)ret, len);
+	len = (int)stroll_min((size_t)ret, len);
 
 	/* Skip trailing newlines. */
 	len -= ustr_rskip_char(line, '\n', len);
@@ -786,7 +786,8 @@ elog_vlog_stdio(struct elog * __restrict logger,
 		const struct iovec vecs[] = {
 			{ /* Include formated header and body... */
 				.iov_base = log->line,
-				.iov_len  = umin(hlen + mlen, sizeof(log->line))
+				.iov_len  = stroll_min(hlen + mlen,
+				                       sizeof(log->line))
 			},
 			{ /* ... then terminating newline character. */
 				.iov_base = &nl,
