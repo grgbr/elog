@@ -1,3 +1,10 @@
+/******************************************************************************
+ * SPDX-License-Identifier: LGPL-3.0-only
+ *
+ * This file is part of eLog.
+ * Copyright (C) 2017-2024 Grégor Boirie <gregor.boirie@free.fr>
+ ******************************************************************************/
+
 #ifndef _ELOG_COMMON_H
 #define _ELOG_COMMON_H
 
@@ -9,10 +16,10 @@
 
 #if defined(CONFIG_ELOG_ASSERT)
 
-#include <utils/assert.h>
+#include <stroll/assert.h>
 
 #define elog_assert(_expr) \
-	uassert("elog", _expr)
+	stroll_assert("elog", _expr)
 
 #else  /* !defined(CONFIG_ELOG_ASSERT) */
 
