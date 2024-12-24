@@ -1135,7 +1135,8 @@ elog_parse_mqueue_msg(struct elog_mqueue_head * __restrict msg, size_t size)
 	 */
 	tstamp = msg->tstamp;
 	utime_boot_now(&now);
-	if (!utime_tspec_after(&now, &tstamp))
+	if (utime_tspec_after(&tstamp, &now))
+		/* Timestamp is in the future: fix it. */
 		msg->tstamp = now;
 
 	return blen - msg->body;
