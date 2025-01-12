@@ -162,11 +162,12 @@ elog_check_severity(enum elog_severity severity)
 	return !(severity & ~LOG_PRIMASK);
 }
 
-static int __elog_nonull(1, 3, 4) __nothrow
-elog_parse_severity(struct elog_parse * __restrict  parse,
-                    enum elog_severity              dflt,
-                    enum elog_severity * __restrict severity,
-                    const char * __restrict         arg)
+static __elog_nonull(1, 3, 4) __nothrow
+int
+elog_parse_base_severity(struct elog_parse * __restrict  parse,
+                         enum elog_severity              dflt,
+                         enum elog_severity * __restrict severity,
+                         const char * __restrict         arg)
 {
 	elog_assert_parse(parse);
 	elog_assert_dflt_severity(dflt);
@@ -315,7 +316,8 @@ elog_parse_format_flag(char * __restrict arg,
 
 }
 
-static int __elog_nonull(1, 3, 4) __nothrow
+static __elog_nonull(1, 3, 4) __nothrow
+int
 elog_parse_format(struct elog_parse * __restrict parse,
                   int                            dflt,
                   int * __restrict               format,
@@ -417,7 +419,8 @@ elog_check_facility(int facility)
 	return facility && !(facility & ~LOG_FACMASK);
 }
 
-static int __elog_nonull(1, 3, 4) __nothrow
+static __elog_nonull(1, 3, 4) __nothrow
+int
 elog_parse_facility(struct elog_parse * __restrict parse,
                     int                            dflt,
                     int * __restrict               facility,
@@ -472,6 +475,17 @@ elog_parse_facility(struct elog_parse * __restrict parse,
 #endif /* defined(CONFIG_ELOG_HAVE_FACILITY) */
 
 int
+elog_parse_severity(struct elog_parse * __restrict parse,
+                    struct elog_conf * __restrict  conf,
+                    const char * __restrict        arg)
+{
+	return elog_parse_base_severity(parse,
+	                                parse->dflt->severity,
+	                                &conf->severity,
+	                                arg);
+}
+
+int
 elog_realize_parse(struct elog_parse * __restrict parse,
                    struct elog_conf * __restrict  conf)
 {
@@ -479,6 +493,45 @@ elog_realize_parse(struct elog_parse * __restrict parse,
 	elog_assert(conf);
 
 	return parse->check(parse, conf);
+}
+
+static int __elog_nonull(1, 2) __nothrow
+elog_check_base(struct elog_parse * __restrict parse,
+                struct elog_conf * __restrict  conf)
+{
+	elog_assert_parse(parse);
+	elog_assert(conf);
+
+	const char * error;
+
+	if (!elog_check_severity(conf->severity)) {
+		error = "invalid severity specified";
+		goto err;
+	}
+
+	return 0;
+
+err:
+	return elog_build_error_string(-EINVAL,
+	                               &parse->error,
+	                               "invalid log configuration: %s",
+	                               error);
+}
+
+void
+elog_init_parse(struct elog_parse * __restrict      parse,
+                struct elog_conf * __restrict       conf,
+                const struct elog_conf * __restrict dflt)
+{
+	elog_assert(parse);
+	elog_assert(conf);
+	elog_assert_dflt_conf(dflt);
+
+	*conf = *dflt;
+
+	parse->check = elog_check_base;
+	parse->error = NULL;
+	parse->dflt = dflt;
 }
 
 void
@@ -615,10 +668,10 @@ elog_parse_stdio_severity(struct elog_parse * __restrict      parse,
 	elog_assert(conf);
 	elog_assert(arg);
 
-	return elog_parse_severity(parse,
-	                           parse->dflt->severity,
-	                           &conf->super.severity,
-	                           arg);
+	return elog_parse_base_severity(parse,
+	                                parse->dflt->severity,
+	                                &conf->super.severity,
+	                                arg);
 }
 
 int
@@ -897,10 +950,10 @@ elog_parse_syslog_severity(struct elog_parse * __restrict       parse,
 	elog_assert(conf);
 	elog_assert(arg);
 
-	return elog_parse_severity(parse,
-	                           parse->dflt->severity,
-	                           &conf->super.severity,
-	                           arg);
+	return elog_parse_base_severity(parse,
+	                                parse->dflt->severity,
+	                                &conf->super.severity,
+	                                arg);
 }
 
 int
@@ -1171,10 +1224,10 @@ elog_parse_mqueue_severity(struct elog_parse * __restrict       parse,
 	elog_assert(conf);
 	elog_assert(arg);
 
-	return elog_parse_severity(parse,
-	                           parse->dflt->severity,
-	                           &conf->super.severity,
-	                           arg);
+	return elog_parse_base_severity(parse,
+	                                parse->dflt->severity,
+	                                &conf->super.severity,
+	                                arg);
 }
 
 int
@@ -1518,7 +1571,7 @@ elog_register_multi_sublog(struct elog_multi * __restrict logger,
 	                    logger->nr + 1,
 	                    sizeof(logger->subs[0]));
 	if (!subs)
-		return -errno;
+		return -ENOMEM;
 
 	subs[logger->nr] = sublog;
 	logger->subs = subs;

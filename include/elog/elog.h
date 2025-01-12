@@ -73,9 +73,21 @@ struct elog_parse {
 };
 
 extern int
+elog_parse_severity(struct elog_parse * __restrict  parse,
+                    struct elog_conf * __restrict   conf,
+                    const char * __restrict         arg)
+	__elog_nonull(1, 2, 3) __nothrow __leaf __warn_result;
+
+extern int
 elog_realize_parse(struct elog_parse * __restrict parse,
                    struct elog_conf * __restrict  conf)
 	__elog_nonull(1, 2) __nothrow;
+
+extern void
+elog_init_parse(struct elog_parse * __restrict      parse,
+                struct elog_conf * __restrict       conf,
+                const struct elog_conf * __restrict dflt)
+	__elog_nonull(1, 2, 3) __nothrow __leaf;
 
 extern void
 elog_fini_parse(const struct elog_parse * __restrict parse)
