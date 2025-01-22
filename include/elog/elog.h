@@ -279,7 +279,7 @@ elog_fini_stdio(struct elog_stdio * __restrict logger)
 	elog_fini(&logger->super);
 }
 
-extern struct elog *
+extern struct elog_stdio *
 elog_create_stdio(const struct elog_stdio_conf * __restrict conf)
 	__elog_nonull(1);
 
@@ -338,7 +338,7 @@ elog_fini_syslog(struct elog_syslog * __restrict logger)
 	elog_fini(&logger->super);
 }
 
-extern struct elog *
+extern struct elog_syslog *
 elog_create_syslog(const struct elog_syslog_conf * __restrict conf)
 	__elog_nonull(1);
 
@@ -413,7 +413,7 @@ elog_init_mqueue_bymqd(struct elog_mqueue * __restrict            logger,
                        const struct elog_mqueue_conf * __restrict conf)
 	__elog_nonull(1, 3) __nothrow __leaf;
 
-extern struct elog *
+extern struct elog_mqueue *
 elog_create_mqueue_bymqd(mqd_t                                      mqd,
                          const struct elog_mqueue_conf * __restrict conf)
 	__elog_nonull(2) __nothrow __leaf;
@@ -423,7 +423,7 @@ elog_init_mqueue(struct elog_mqueue * __restrict            logger,
                  const struct elog_mqueue_conf * __restrict conf)
 	__elog_nonull(1, 2) __nothrow __leaf;
 
-extern struct elog *
+extern struct elog_mqueue *
 elog_create_mqueue(const struct elog_mqueue_conf * __restrict conf)
 	__elog_nonull(1) __nothrow __leaf;
 
@@ -462,6 +462,10 @@ elog_fini_multi(struct elog_multi * __restrict logger)
 {
 	elog_fini(&logger->super);
 }
+
+extern struct elog_multi *
+elog_create_multi(elog_release_fn * release)
+	__elog_nonull(1) __nothrow __warn_result;
 
 #endif /* defined(CONFIG_ELOG_MULTI) */
 

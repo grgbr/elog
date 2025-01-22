@@ -970,10 +970,10 @@ elogger_build_stdlog(char * __restrict spec)
 			return NULL;
 		}
 
-		sublog = elog_create_stdio(&conf);
+		sublog = (struct elog *)elog_create_stdio(&conf);
 	}
 	else
-		sublog = elog_create_stdio(&dflt);
+		sublog = (struct elog *)elog_create_stdio(&dflt);
 
 	if (sublog)
 		return sublog;
@@ -1098,10 +1098,10 @@ elogger_build_syslog(char * __restrict spec)
 			return NULL;
 		}
 
-		sublog = elog_create_syslog(&conf);
+		sublog = (struct elog *)elog_create_syslog(&conf);
 	}
 	else
-		sublog = elog_create_syslog(&dflt);
+		sublog = (struct elog *)elog_create_syslog(&dflt);
 
 	if (sublog)
 		return sublog;
@@ -1224,10 +1224,10 @@ elogger_build_mqlog(char * __restrict spec)
 			return NULL;
 		}
 
-		sublog = elog_create_mqueue(&conf);
+		sublog = (struct elog *)elog_create_mqueue(&conf);
 	}
 	else
-		sublog = elog_create_mqueue(&dflt);
+		sublog = (struct elog *)elog_create_mqueue(&dflt);
 
 	if (sublog)
 		return sublog;

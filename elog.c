@@ -899,7 +899,7 @@ elog_init_stdio(struct elog_stdio * __restrict            logger,
 	fflush_unlocked(stderr);
 }
 
-struct elog *
+struct elog_stdio *
 elog_create_stdio(const struct elog_stdio_conf * __restrict conf)
 {
 	elog_assert_stdio_conf(conf);
@@ -912,7 +912,7 @@ elog_create_stdio(const struct elog_stdio_conf * __restrict conf)
 
 	elog_init_stdio(logger, conf);
 
-	return &logger->super;
+	return logger;
 }
 
 #endif /* defined(CONFIG_ELOG_STDIO) */
@@ -1131,7 +1131,7 @@ elog_init_syslog(struct elog_syslog * __restrict            logger,
 	logger->conf = *conf;
 }
 
-struct elog *
+struct elog_syslog *
 elog_create_syslog(const struct elog_syslog_conf * __restrict conf)
 {
 	elog_assert_syslog_conf(conf);
@@ -1144,7 +1144,7 @@ elog_create_syslog(const struct elog_syslog_conf * __restrict conf)
 
 	elog_init_syslog(logger, conf);
 
-	return &logger->super;
+	return logger;
 }
 
 #endif /* defined(CONFIG_ELOG_SYSLOG) */
@@ -1440,7 +1440,7 @@ elog_init_mqueue_bymqd(struct elog_mqueue * __restrict            logger,
 	logger->fd = mqd;
 }
 
-struct elog *
+struct elog_mqueue *
 elog_create_mqueue_bymqd(mqd_t                                      mqd,
                          const struct elog_mqueue_conf * __restrict conf)
 {
@@ -1454,7 +1454,7 @@ elog_create_mqueue_bymqd(mqd_t                                      mqd,
 
 	elog_init_mqueue_bymqd(logger, mqd, conf);
 
-	return &logger->super;
+	return logger;
 }
 
 int
@@ -1483,7 +1483,7 @@ elog_init_mqueue(struct elog_mqueue * __restrict            logger,
 	return 0;
 }
 
-struct elog *
+struct elog_mqueue *
 elog_create_mqueue(const struct elog_mqueue_conf * __restrict conf)
 {
 	elog_assert_mqueue_conf(conf);
@@ -1502,7 +1502,7 @@ elog_create_mqueue(const struct elog_mqueue_conf * __restrict conf)
 		return NULL;
 	}
 
-	return &logger->super;
+	return logger;
 }
 
 #endif /* defined(CONFIG_ELOG_MQUEUE) */
@@ -1590,6 +1590,22 @@ elog_init_multi(struct elog_multi * __restrict logger,
 	logger->nr = 0;
 	logger->subs = NULL;
 	logger->release = release;
+}
+
+struct elog_multi *
+elog_create_multi(elog_release_fn * release)
+{
+	elog_assert(release);
+
+	struct elog_multi * logger;
+
+	logger = malloc(sizeof(*logger));
+	if (!logger)
+		return NULL;
+
+	elog_init_multi(logger, release);
+
+	return logger;
 }
 
 #endif /* defined(CONFIG_ELOG_MULTI) */
