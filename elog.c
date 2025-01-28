@@ -1666,6 +1666,98 @@ elog_destroy(struct elog * __restrict logger)
 	free(logger);
 }
 
+static
+time_t
+elog_ratelim_now(void)
+{
+	struct timespec now;
+
+	utime_coarse_now(&now);
+
+	return now.tv_sec;
+}
+
+static __elog_nonull(1, 2)
+bool
+elog_ratelim_on(struct elog * __restrict         logger,
+                struct elog_ratelim * __restrict ratelim)
+{
+	elog_assert(logger);
+	elog_assert(ratelim);
+
+	if (ratelim->lapse) {
+		time_t now;
+
+		now = elog_ratelim_now();
+
+		if (!ratelim->start)
+			ratelim->start = now;
+
+		if (now > (ratelim->start + ratelim->lapse)) {
+			if (ratelim->reject && ratelim->label) {
+				elog_log(logger,
+				         ELOG_WARNING_SEVERITY,
+				         "rate limited %u '%s' log message(s).",
+				         ratelim->reject,
+				         ratelim->label);
+				ratelim->reject = 0;
+			}
+
+			ratelim->start = now;
+			ratelim->passed = 0;
+		}
+
+		if (ratelim->burst > ratelim->passed) {
+			ratelim->passed++;
+			return true;
+		}
+
+		ratelim->reject++;
+		return false;
+	}
+
+	return true;
+}
+
+void
+_elog_ratelim_vlog(struct elog * __restrict         logger,
+                   struct elog_ratelim * __restrict ratelim,
+                   enum elog_severity               severity,
+                   const char * __restrict          format,
+                   va_list                          args)
+{
+	elog_assert_base(logger);
+	elog_assert(ratelim);
+	elog_assert_severity(severity);
+	elog_assert(format);
+	elog_assert(format[0]);
+
+	if (elog_ratelim_on(logger, ratelim))
+		elog_vlog(logger, severity, format, args);
+}
+
+void
+_elog_ratelim_log(struct elog * __restrict         logger,
+                  struct elog_ratelim * __restrict ratelim,
+                  enum elog_severity               severity,
+                  const char * __restrict          format,
+                  ...)
+{
+	elog_assert_base(logger);
+	elog_assert(ratelim);
+	elog_assert_severity(severity);
+	elog_assert(format);
+	elog_assert(format[0]);
+
+	if (elog_ratelim_on(logger, ratelim)) {
+		va_list args;
+
+		va_start(args, format);
+		elog_vlog(logger, severity, format, args);
+		va_end(args);
+	}
+}
+
 static void __elog_nonull(1) __nothrow
 elog_setup_tag(const char * __restrict tag)
 {

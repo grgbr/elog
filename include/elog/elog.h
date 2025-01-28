@@ -126,7 +126,7 @@ elog_fini(struct elog * logger) __elog_nonull(1);
 
 #else  /* !defined(CONFIG_ELOG_ASSERT) */
 
-static inline void __elog_nonull(1, 3) __nothrow
+static inline void __elog_nonull(1, 3) __printf(3, 0) __nothrow
 elog_vlog(struct elog * __restrict logger,
           enum elog_severity       severity,
           const char * __restrict  format,
@@ -155,6 +155,9 @@ elog_fini(struct elog * logger)
 }
 
 #endif /* defined(CONFIG_ELOG_ASSERT) */
+
+extern void
+elog_destroy(struct elog * __restrict logger) __elog_nonull(1);
 
 #define elog_base(_logger) \
 	((struct elog *)(_logger))
@@ -213,8 +216,169 @@ elog_fini(struct elog * logger)
 	         _format, \
 	         ## __VA_ARGS__)
 
+struct elog_ratelim {
+	time_t             start;
+	const unsigned int lapse;
+	const unsigned int burst;
+	unsigned int       passed;
+	unsigned int       reject;
+	const char * const label;
+};
+
+#define ELOG_RATELIM_INIT(_burst, _lapse, _label) \
+	{ \
+		.start  = 0, \
+		.lapse  = _lapse, \
+		.burst  = _burst, \
+		.passed = 0, \
+		.reject = 0, \
+		.label  = _label \
+	}
+
 extern void
-elog_destroy(struct elog * __restrict logger) __elog_nonull(1);
+_elog_ratelim_vlog(struct elog * __restrict         logger,
+                   struct elog_ratelim * __restrict ratelim,
+                   enum elog_severity               severity,
+                   const char * __restrict          format,
+                   va_list                          args)
+	__elog_nonull(1, 2, 4) __printf(4, 0) __nothrow;
+
+extern void
+_elog_ratelim_log(struct elog * __restrict         logger,
+                  struct elog_ratelim * __restrict ratelim,
+                  enum elog_severity               severity,
+                  const char * __restrict          format,
+                  ...)
+	__elog_nonull(1, 2, 4) __printf(4, 5) __nothrow;
+
+#define _ELOG_RATELIM_VLOG( \
+	_logger, _ratelim, _burst, _lapse, _label, _severity, _format, _args) \
+	({ \
+		static struct elog_ratelim _ratelim = \
+			ELOG_RATELIM_INIT(_burst, _lapse, _label); \
+		\
+		_elog_ratelim_vlog(_logger, \
+		                   &_ratelim, \
+		                   _severity, \
+		                   _format, \
+		                   _args); \
+	 })
+
+#define elog_ratelim_vlog( \
+	_logger, _burst, _lapse, _label, _severity, _format, _args) \
+	_ELOG_RATELIM_VLOG(_logger, \
+	                   STROLL_UNIQ(elog_ratelim), \
+	                   _burst, \
+	                   _lapse, \
+	                   _label, \
+	                   _severity, \
+	                   _format, \
+	                   _args) \
+
+#define _ELOG_RATELIM_LOG( \
+	_logger, _ratelim, _burst, _lapse, _label, _severity, _format, ...) \
+	({ \
+		static struct elog_ratelim _ratelim = \
+			ELOG_RATELIM_INIT(_burst, _lapse, _label); \
+		\
+		_elog_ratelim_log(_logger, \
+		                  &_ratelim, \
+		                  _severity, \
+		                  _format, \
+		                  ## __VA_ARGS__); \
+	 })
+
+#define elog_ratelim_log( \
+	_logger, _burst, _lapse, _label, _severity, _format, ...) \
+	_ELOG_RATELIM_LOG(_logger, \
+	                  STROLL_UNIQ(elog_ratelim), \
+	                  _burst, \
+	                  _lapse, \
+	                  _label, \
+	                  _severity, \
+	                  _format, \
+	                  ## __VA_ARGS__)
+
+#define elog_ratelim_current(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_CURRENT_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
+
+#define elog_ratelim_emerg(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_EMERG_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
+
+#define elog_ratelim_alert(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_ALERT_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
+
+#define elog_ratelim_crit(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_CRIT_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
+
+#define elog_ratelim_err(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_ERR_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
+
+#define elog_ratelim_warn(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_WARNING_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
+
+#define elog_ratelim_notice(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_NOTICE_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
+
+#define elog_ratelim_info(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_INFO_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
+
+#define elog_ratelim_debug(_logger, _burst, _lapse, _label, _format, ...) \
+	elog_ratelim_log(elog_base(_logger), \
+	                 _burst, \
+	                 _lapse, \
+	                 _label, \
+	                 ELOG_DEBUG_SEVERITY, \
+	                 _format, \
+	                 ## __VA_ARGS__)
 
 #define ELOG_DFLT_TAG (NULL)
 #define ELOG_DFLT_PID (-1)
