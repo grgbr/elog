@@ -535,9 +535,9 @@ struct elog_mqueue_conf {
 };
 
 extern int
-elog_parse_mqueue_severity(struct elog_parse * __restrict      parse,
+elog_parse_mqueue_severity(struct elog_parse * __restrict       parse,
 			   struct elog_mqueue_conf * __restrict conf,
-                           const char * __restrict             arg)
+                           const char * __restrict              arg)
 	__elog_nonull(1, 2, 3) __nothrow;
 
 extern int
