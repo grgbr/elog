@@ -1693,7 +1693,7 @@ elog_ratelim_on(struct elog * __restrict         logger,
 		if (!ratelim->start)
 			ratelim->start = now;
 
-		if (now > (ratelim->start + ratelim->lapse)) {
+		if (now > (ratelim->start + (time_t)ratelim->lapse)) {
 			if (ratelim->reject && ratelim->label) {
 				elog_log(logger,
 				         ELOG_WARNING_SEVERITY,
